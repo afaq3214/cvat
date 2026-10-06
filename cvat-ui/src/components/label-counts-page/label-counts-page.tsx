@@ -6,6 +6,7 @@ import { Row, Col } from 'antd/lib/grid';
 import Button from 'antd/lib/button';
 import Empty from 'antd/lib/empty';
 import Result from 'antd/lib/result';
+import Switch from 'antd/lib/switch';
 import Text from 'antd/lib/typography/Text';
 import Title from 'antd/lib/typography/Title';
 
@@ -28,6 +29,7 @@ function LabelCountsPage(): JSX.Element {
     const [fetching, setFetching] = useState(true);
     const [error, setError] = useState<Error | null>(null);
     const [counts, setCounts] = useState<TaskLabelCounts | null>(null);
+    const [groupByType, setGroupByType] = useState(false);
 
     const loadCounts = useCallback(async (): Promise<void> => {
         setFetching(true);
@@ -72,10 +74,20 @@ function LabelCountsPage(): JSX.Element {
     } else if (counts) {
         content = (
             <>
-                <Text type='secondary' className='cvat-label-counts-total'>
-                    {`${counts.total} annotations across ${counts.labels.length} labels`}
-                </Text>
-                <LabelCountsChart labels={counts.labels} />
+                <div className='cvat-label-counts-summary'>
+                    <Text type='secondary'>
+                        {`${counts.total} annotations across ${counts.labels.length} labels`}
+                    </Text>
+                    <span>
+                        <Switch
+                            className='cvat-label-counts-group-switch'
+                            checked={groupByType}
+                            onChange={setGroupByType}
+                        />
+                        <Text>Group by shape type</Text>
+                    </span>
+                </div>
+                <LabelCountsChart labels={counts.labels} groupByType={groupByType} />
             </>
         );
     }

@@ -12,7 +12,13 @@
     padding: $grid-unit-size * 3 $grid-unit-size * 4;
 }
 
-.cvat-label-counts-total {
-    display: block;
+.cvat-label-counts-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: $grid-unit-size * 2;
+}
+
+.cvat-label-counts-group-switch {
+    margin-right: $grid-unit-size;
 }
