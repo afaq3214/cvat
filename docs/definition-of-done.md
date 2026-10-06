@@ -64,7 +64,7 @@ the pull request description.
   `plan.md`, "Changes to this plan".
 - [x] Everything I did not finish is listed, with the reason.
   `plan.md`, "What I did not finish".
-- [ ] Pull request opened from `dev-test01` into my own fork, not into `cvat-ai/cvat`.
+- [x] Pull request opened from `dev-test01` into my own fork, not into `cvat-ai/cvat`.
 
 ## How I tested
 
