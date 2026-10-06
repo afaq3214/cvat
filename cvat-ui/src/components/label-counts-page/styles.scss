@@ -1,0 +1,24 @@
+@import 'base';
+
+.cvat-label-counts-page {
+    height: 100%;
+    overflow-y: auto;
+    padding-bottom: $grid-unit-size * 4;
+}
+
+.cvat-label-counts-inner {
+    background: white;
+    border-radius: $grid-unit-size;
+    padding: $grid-unit-size * 3 $grid-unit-size * 4;
+}
+
+.cvat-label-counts-summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $grid-unit-size * 2;
+}
+
+.cvat-label-counts-group-switch {
+    margin-right: $grid-unit-size;
+}
