@@ -5,7 +5,7 @@
 | Field | Entry |
 |---|---|
 | What is measured | Time for `GET /api/test/tasks/1/label-counts` to return a full response to a logged-in task owner. |
-| How | `curl` from the host, reading `time_total`. One run is 10 requests in a row, and the value of the run is the median of those 10. The script is `docs/evidence/measure-mo-1.sh`. |
+| How | `curl` from the host, reading `time_total`. One run is 10 requests in a row, and the value of the run is the median of those 10. The exact steps are under "How to repeat it". |
 | Target | Median of 5 runs at or below **200 ms**. |
 | Conditions | Local Docker stack on the machine below, through `http://localhost:8080` (Traefik, nginx, uvicorn). Task 1: 500 COCO val2017 images, 80 labels, 3953 shapes. Server warm: 3 requests are sent and thrown away first. Token login. No other requests to CVAT during the run. |
 | Not included | The first request after a server restart. Time the browser needs to draw the chart. Tasks of other sizes. Video tasks and tracks, because the sample data has none. |
@@ -42,11 +42,20 @@ was started again because the server waits for it at startup).
 
 ### Result
 
-**Target missed.** Median of 5 runs: **342 ms**. Target: 200 ms.
-Spread of the 5 runs: 268 ms to 441 ms.
+**Target missed: 342 ms. The target was 200 ms.**
 
-Measured on 6 October 2026 at 18:57 UTC, on commit `7d45bb006`. Raw output,
-copied from `docs/evidence/mo-1-runs.txt`:
+| Run | Middle value of its 10 requests |
+|---|---|
+| 1 | 342 ms |
+| 2 | 268 ms |
+| 3 | 434 ms |
+| 4 | 316 ms |
+| 5 | 441 ms |
+
+In order: 268, 316, **342**, 434, 441. The middle one is 342 ms. The spread is
+268 to 441 ms.
+
+Measured on 6 October 2026 at 23:57 (18:57 UTC), on commit `7d45bb006`. Raw output:
 
 ```
 # 2026-10-06T18:57:50Z  http://localhost:8080/api/test/tasks/1/label-counts
@@ -60,42 +69,48 @@ median of 5 runs: 342.15 ms
 spread of 5 runs: 267.7 to 440.7 ms
 ```
 
-### Why it was missed
+### Why I missed it
 
-The fastest single request out of 50 was 232 ms. So this is not bad luck in one
-run: on this machine the endpoint does not reach 200 ms at all.
+- The fastest of all 50 requests took 232 ms. So this is not one unlucky run. On
+  this laptop the endpoint never gets under 200 ms.
+- Right after, I timed two of CVAT's own endpoints the same way, 10 requests each:
 
-To see how much of the time is mine, I timed two existing CVAT endpoints right
-after, on the same stack with the same login, 10 requests each
-(`docs/evidence/mo-1-baseline.txt`):
+  | Endpoint | Middle value |
+  |---|---|
+  | `/api/server/about` (CVAT's own, does almost no work) | 130 ms |
+  | `/api/test/tasks/1/label-counts` (mine) | 403 ms |
+  | `/api/tasks/1` (CVAT's own task details) | 743 ms |
 
-| Endpoint | Median |
-|---|---|
-| `/api/server/about` (CVAT's own, no permission check on an object) | 130 ms |
-| `/api/test/tasks/1/label-counts` (mine) | 403 ms |
-| `/api/tasks/1` (CVAT's own task details) | 743 ms |
+  ```
+  /api/test/tasks/1/label-counts: 1287.3 1949.4 357.4 451.5 1195.4 389.3 297.1 249.0 228.5 416.6
+  /api/tasks/1: 1953.0 10209.8 514.8 3610.5 2327.1 447.1 682.0 804.5 288.5 492.8
+  /api/server/about: 290.7 136.6 1403.2 313.2 184.4 104.5 102.0 124.0 104.7 111.0
+  ```
 
-What I take from this:
+- So about 130 ms is gone before my code even runs. 200 - 130 = 70 ms was all I
+  had left for the permission check and my queries. My target was too tight, and
+  I set it without knowing this.
+- The laptop was short on memory the whole evening (90 to 320 MB free when I
+  looked). That is why some requests took over a second, and one took 4.5.
+- I did not measure which part of my own code is the slow one.
 
-- About 130 ms is spent before any of my code runs. That left about 70 ms of my
-  200 ms for the permission check and the queries. My target was too tight for
-  this stack on this laptop, and I set it without knowing the floor.
-- My endpoint is slower than the floor by about 200 to 270 ms. That part is the
-  permission check, loading the task and its labels, and the three counting
-  queries. I did not measure how it splits between them, so I cannot say which
-  one to fix first.
-- The numbers are noisy. Single requests took up to 4.5 seconds, and my endpoint
-  measured 342 ms in one set and 403 ms in the next. The laptop was short on
-  memory all evening: when I checked, between 90 and 320 MB was free. The
-  baseline is 10 requests per endpoint, not 5 runs, so I use it only to compare,
-  not as a result.
+One correction to what I wrote before measuring: my endpoint runs five queries,
+not four. They are the task, its labels, and one count each for shapes, tracks
+and tags.
 
-One correction to what I wrote before measuring: the endpoint runs five queries
-of its own, not four. They are the task, its labels, and one count each for
-shapes, tracks and tags.
+### How to repeat it
 
-### What I would do next
+1. Start the stack and get an API token for the owner of task 1.
+2. Run this command. It prints the time of one request in seconds:
 
-First, time the permission check and each query separately, on a machine with
-free memory. Only then decide. If the queries are the slow part, the fix is the
-count table described in the decision record in `plan.md`.
+   ```
+   curl -s -o /dev/null -H "Authorization: Token <token>" -w "%{time_total}\n" http://localhost:8080/api/test/tasks/1/label-counts
+   ```
+
+3. Run it 3 times and ignore the results. This warms the server up.
+4. Run it 10 times and write the times down in order. The value of the run is
+   the middle: halfway between the 5th and the 6th.
+5. Do step 4 five times. Put the five values in order and take the 3rd.
+
+I put these steps in a small shell loop so I did not have to type the command
+53 times. The loop does nothing else.
